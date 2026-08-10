@@ -17,9 +17,14 @@ const words: WordEntry[] = [
   { phonemeWord: '/pɪg/', englishEquivalence: 'pig' },
 ];
 
+function cleanPhoneme(phoneme: string): string {
+  return phoneme.replace(/[/ˈˌ]/g, '').slice(0, 4);
+}
+
 function buildWordSearch(difficulty: Difficulty) {
   const size = difficulty === 'easy' ? 8 : difficulty === 'medium' ? 9 : 10;
   const board = Array.from({ length: size }, () => Array(size).fill(''));
+  const placedWordsMap: { [key: string]: { phoneme: string; positions: [number, number][] } } = {};
   const directions = [
     [0, 1],
     [1, 0],
@@ -27,9 +32,11 @@ function buildWordSearch(difficulty: Difficulty) {
     [1, -1],
   ];
 
-  const placedWords = words.slice(0, 5).map((entry) => entry.englishEquivalence.toUpperCase());
+  const selectedWords = words.slice(0, 5);
+  const placedWords = selectedWords.map((entry) => ({ phoneme: entry.phonemeWord, clean: cleanPhoneme(entry.phonemeWord) }));
 
-  placedWords.forEach((word) => {
+  placedWords.forEach(({ phoneme, clean }) => {
+    const word = clean.toUpperCase();
     let placed = false;
     for (let attempt = 0; attempt < 120 && !placed; attempt += 1) {
       const row = Math.floor(Math.random() * size);
@@ -42,9 +49,14 @@ function buildWordSearch(difficulty: Difficulty) {
       });
 
       if (fits) {
+        const positions: [number, number][] = [];
         word.split('').forEach((letter, index) => {
-          board[row + dx * index][col + dy * index] = letter;
+          const r = row + dx * index;
+          const c = col + dy * index;
+          board[r][c] = letter;
+          positions.push([r, c]);
         });
+        placedWordsMap[phoneme] = { phoneme, positions };
         placed = true;
       }
     }
@@ -58,7 +70,7 @@ function buildWordSearch(difficulty: Difficulty) {
     }
   }
 
-  return { size, board, placedWords: placedWords.map((word) => word.toUpperCase()) };
+  return { size, board, placedWords, placedWordsMap };
 }
 
 function downloadHtml(content: string, fileName: string) {
@@ -77,6 +89,13 @@ export function WordSearchBuilder() {
   const previewBoard = boardState.board;
 
   const handleGenerate = () => {
+    const wordListHtml = Object.entries(boardState.placedWordsMap)
+      .map(([phoneme, { positions }]) => {
+        const positionStr = positions.map(([r, c]) => `${r},${c}`).join('|');
+        return `<span class="pill" data-positions="${positionStr}">${phoneme}</span>`;
+      })
+      .join('');
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -84,25 +103,229 @@ export function WordSearchBuilder() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Phoneme Word Search</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f7fb; color: #14213d; margin: 0; }
-    main { max-width: 800px; margin: 0 auto; padding: 24px; }
-    .grid { display: grid; gap: 8px; grid-template-columns: repeat(${boardState.size}, 44px); justify-content: center; margin-top: 16px; }
-    .cell { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: white; border: 1px solid #dbeafe; font-weight: 700; }
-    .list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-    .pill { border-radius: 999px; padding: 8px 10px; background: #eef4ff; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f4f7fb; color: #14213d; margin: 0; padding: 20px; }
+    main { max-width: 900px; margin: 0 auto; }
+    h1 { text-align: center; color: #14213d; margin-bottom: 10px; }
+    .instructions { text-align: center; color: #666; margin-bottom: 20px; }
+    .button-group { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+    button { border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .show-answers-btn { background: #10b981; color: white; }
+    .show-answers-btn:hover { background: #059669; }
+    .grid { display: grid; gap: 6px; grid-template-columns: repeat(${boardState.size}, 45px); justify-content: center; margin: 30px auto; user-select: none; }
+    .cell { 
+      width: 45px; height: 45px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      border-radius: 8px; 
+      background: white; 
+      border: 2px solid #dbeafe;
+      font-weight: 700; 
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .cell:hover { background: #f0f9ff; }
+    .cell.selected { background: #4ade80; color: white; border-color: #22c55e; }
+    .cell.found-cell { background: #4ade80; color: white; border-color: #22c55e; }
+    .cell.answer { background: #fbbf24; color: white; border-color: #f59e0b; }
+    .word-list { 
+      margin-top: 30px; 
+      padding: 20px; 
+      background: #f9fafb; 
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+    }
+    .word-list-title { font-size: 14px; font-weight: 600; color: #666; margin-bottom: 12px; }
+    .list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill { 
+      display: inline-block;
+      border-radius: 999px; 
+      padding: 8px 12px; 
+      background: #eef4ff; 
+      border: 1px solid #bfdbfe;
+      font-size: 13px;
+      font-weight: 500;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .pill:hover { background: #dbeafe; }
+    .pill.found { background: #dcfce7; border-color: #86efac; }
   </style>
 </head>
 <body>
   <main>
     <h1>Phoneme Word Search</h1>
-    <p>Find the phoneme-based words in the grid.</p>
-    <div class="grid">
-      ${previewBoard.flat().map((letter) => `<div class="cell">${letter}</div>`).join('')}
+    <p class="instructions">Find the phoneme-based words in the grid. Drag across letters to select them.</p>
+    
+    <div class="button-group">
+      <button class="show-answers-btn" onclick="toggleAnswers()">Show Answers</button>
     </div>
-    <div class="list">
-      ${words.map((word) => `<span class="pill">${word.phonemeWord} → ${word.englishEquivalence}</span>`).join('')}
+
+    <div class="grid" id="grid">
+      ${boardState.board
+        .flat()
+        .map((letter, index) => `<div class="cell" data-index="${index}">${letter}</div>`)
+        .join('')}
+    </div>
+
+    <div class="word-list">
+      <div class="word-list-title">Word List: (space separated)</div>
+      <div class="list">
+        ${wordListHtml}
+      </div>
     </div>
   </main>
+
+  <script>
+    const boardSize = ${boardState.size};
+    const placedWords = ${JSON.stringify(
+      Object.entries(boardState.placedWordsMap).map(([phoneme, { positions }]) => ({
+        phoneme,
+        positions,
+      }))
+    )};
+    let showAnswers = false;
+    let selectedCells = new Set();
+    let isDragging = false;
+    const correctWords = new Set();
+    const foundCells = new Set();
+
+    function getCellIndex(row, col) {
+      return row * boardSize + col;
+    }
+
+    function getCellPosition(index) {
+      return [Math.floor(index / boardSize), index % boardSize];
+    }
+
+    function selectCell(index) {
+      const cell = document.querySelector(\`[data-index="\${index}"]\`);
+      if (!selectedCells.has(index)) {
+        selectedCells.add(index);
+        cell.classList.add('selected');
+      }
+    }
+
+    function toggleCellDuringDrag(index) {
+      const cell = document.querySelector(\`[data-index="\${index}"]\`);
+      if (selectedCells.has(index)) {
+        selectedCells.delete(index);
+        cell.classList.remove('selected');
+      } else {
+        selectedCells.add(index);
+        cell.classList.add('selected');
+      }
+    }
+
+    function deselectCell(index) {
+      const cell = document.querySelector(\`[data-index="\${index}"]\`);
+      if (selectedCells.has(index)) {
+        selectedCells.delete(index);
+        cell.classList.remove('selected');
+      }
+    }
+
+    function clearSelection() {
+      selectedCells.forEach(index => {
+        if (!foundCells.has(index)) {
+          const cell = document.querySelector(\`[data-index="\${index}"]\`);
+          cell.classList.remove('selected');
+        }
+      });
+      selectedCells.clear();
+    }
+
+    function validateSelection() {
+      if (selectedCells.size === 0) return;
+
+      let isCorrect = false;
+      for (let word of placedWords) {
+        if (correctWords.has(word.phoneme)) continue;
+        
+        const wordPositionSet = new Set(word.positions.map(([r, c]) => getCellIndex(r, c)));
+        if (selectedCells.size === wordPositionSet.size) {
+          const allMatch = Array.from(selectedCells).every(index => wordPositionSet.has(index));
+          if (allMatch) {
+            isCorrect = true;
+            correctWords.add(word.phoneme);
+            const pill = document.querySelector(\`[data-positions="\${word.positions.map(([r, c]) => \`\${r},\${c}\`).join('|')}"]\`);
+            if (pill) pill.classList.add('found');
+            
+            // Mark these cells as found
+            word.positions.forEach(([r, c]) => {
+              foundCells.add(getCellIndex(r, c));
+              const cell = document.querySelector(\`[data-index="\${getCellIndex(r, c)}"]\`);
+              cell.classList.add('found-cell');
+              cell.classList.remove('selected');
+            });
+            break;
+          }
+        }
+      }
+
+      if (!isCorrect) {
+        clearSelection();
+      } else {
+        selectedCells.clear();
+      }
+    }
+
+    function toggleAnswers() {
+      showAnswers = !showAnswers;
+      document.querySelectorAll('.cell').forEach((cell, index) => {
+        if (showAnswers) {
+          for (let word of placedWords) {
+            if (word.positions.some(([r, c]) => getCellIndex(r, c) === index)) {
+              cell.classList.add('answer');
+              return;
+            }
+          }
+        } else {
+          cell.classList.remove('answer');
+        }
+      });
+    }
+
+    function checkFoundWords() {
+      placedWords.forEach(word => {
+        const pill = document.querySelector(\`[data-positions="\${word.positions.map(([r, c]) => \`\${r},\${c}\`).join('|')}"]\`);
+        const allSelected = word.positions.every(([r, c]) => selectedCells.has(getCellIndex(r, c)));
+        
+        if (allSelected) {
+          pill.classList.add('found');
+        } else {
+          pill.classList.remove('found');
+        }
+      });
+    }
+
+    document.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('cell')) {
+        isDragging = true;
+        clearSelection();
+        selectCell(parseInt(e.target.dataset.index));
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const element = document.elementFromPoint(e.clientX, e.clientY);
+        if (element && element.classList.contains('cell')) {
+          toggleCellDuringDrag(parseInt(element.dataset.index));
+        }
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        validateSelection();
+      }
+    });
+  </script>
 </body>
 </html>`;
 
