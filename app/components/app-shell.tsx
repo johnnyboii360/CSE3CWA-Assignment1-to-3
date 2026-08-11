@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
 type ThemeMode = 'light' | 'dark';
 type LayoutMode = 'comfortable' | 'compact';
@@ -26,6 +27,8 @@ const navItems = [
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(() => {
     const storedTheme = readCookieValue('theme');
     return storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : 'light';
@@ -57,6 +60,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('settings:updated', onSettings as EventListener);
   }, []);
 
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!menuOpen) return;
+
+      const target = event.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [menuOpen]);
+
   const spacingClass = layout === 'compact' ? 'space-y-4' : 'space-y-8';
 
   return (
@@ -68,7 +85,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               Speech Pathology Activity Builder
             </Link>
             <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-              Assessment 1 • Frontend builder for phoneme activities
+              Assessment 1 • Frontend design and usability
             </p>
           </div>
 
@@ -77,21 +94,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-full px-3 py-2 text-sm font-medium transition ${theme === 'dark' ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
+                className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+                  item.href === pathname
+                    ? theme === 'dark'
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-100 text-slate-950'
+                    : theme === 'dark'
+                      ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                }`}
               >
                 {item.label}
               </Link>
             ))}
 
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button
                 type="button"
                 aria-expanded={menuOpen}
                 aria-label="Toggle navigation menu"
                 onClick={() => setMenuOpen((open) => !open)}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border ${theme === 'dark' ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'}`}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full transition ${theme === 'dark' ? 'text-slate-100 hover:bg-slate-800 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'}`}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-6 w-6">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
               </button>
@@ -103,7 +128,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       key={item.href}
                       href={item.href}
                       onClick={() => setMenuOpen(false)}
-                      className={`block rounded-full px-3 py-2 text-sm font-medium transition ${theme === 'dark' ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
+                      className={`block rounded-full px-3 py-2 text-sm font-medium transition ${
+                        item.href === pathname
+                          ? theme === 'dark'
+                            ? 'bg-slate-800 text-white'
+                            : 'bg-slate-100 text-slate-950'
+                          : theme === 'dark'
+                            ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                      }`}
                     >
                       {item.label}
                     </Link>

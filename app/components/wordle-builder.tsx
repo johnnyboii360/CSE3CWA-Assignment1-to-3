@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from 'react';
 
-type Difficulty = 'easy' | 'medium' | 'hard';
-
 type WordOption = {
   id: string;
   phonemeWord: string;
@@ -13,41 +11,129 @@ type WordOption = {
   cards: Array<{ symbol: string; label: string; letter: string }>;
 };
 
+const distractorKeys: Array<{ symbol: string; label: string }> = [
+  { symbol: 'θ', label: 'TH (as in thin)' },
+  { symbol: 'ʃ', label: 'SH (as in ship)' },
+  { symbol: 'ʒ', label: 'ZH (as in measure)' },
+  { symbol: 'ŋ', label: 'NG (as in sing)' },
+  { symbol: 'u', label: 'long OO (as in boot)' },
+  { symbol: 'ɔ', label: 'aw (as in saw)' },
+  { symbol: 'b', label: 'B (as in bat)' },
+  { symbol: 'd', label: 'D (as in dog)' },
+];
+
+const preferredKeyboardOrder = ['ɪ', 't', 'ʃ', 'ə', 'v', 'k', 'ɔ', 'm', 'θ', 'r', 'æ', 'd', 'u', 'ʒ', 'p', 'ɒ', 'l', 'ŋ', 'b', 'ɛ'];
+
+function stripSlashes(symbol: string): string {
+  return symbol.replace(/^\//, '').replace(/\/$/, '');
+}
+
+function buildKeyboardEntries(options: WordOption[]) {
+  const labelMap = new Map<string, string>();
+  options.forEach((option) => {
+    option.cards.forEach((card) => {
+      const symbol = stripSlashes(card.symbol);
+      if (!labelMap.has(symbol)) {
+        labelMap.set(symbol, card.label);
+      }
+    });
+  });
+
+  distractorKeys.forEach((key) => {
+    if (!labelMap.has(key.symbol)) {
+      labelMap.set(key.symbol, key.label);
+    }
+  });
+
+  const availableSymbols = new Set<string>([
+    ...options.flatMap((option) => option.cards.map((card) => stripSlashes(card.symbol))),
+    ...distractorKeys.map((key) => key.symbol),
+  ]);
+
+  const orderMap = new Map<string, number>(preferredKeyboardOrder.map((symbol, index) => [symbol, index]));
+
+  return Array.from(availableSymbols)
+    .sort((a, b) => {
+      const ai = orderMap.has(a) ? orderMap.get(a)! : Number.MAX_SAFE_INTEGER;
+      const bi = orderMap.has(b) ? orderMap.get(b)! : Number.MAX_SAFE_INTEGER;
+      if (ai !== bi) return ai - bi;
+      return a.localeCompare(b);
+    })
+    .map((symbol) => ({
+      symbol,
+      label: labelMap.get(symbol) ?? symbol,
+    }));
+}
+
 const wordOptions: WordOption[] = [
   {
-    id: 'thin',
-    phonemeWord: '/θɪn/',
-    englishEquivalence: 'thin',
-    hint: 'This word begins with the voiceless TH sound.',
-    clue: 'TH (as in thin)',
+    id: 'camel',
+    phonemeWord: '/kæməl/',
+    englishEquivalence: 'camel',
+    hint: 'This word starts with K and has a schwa before the final L sound.',
+    clue: 'K + schwa + L',
     cards: [
-      { symbol: '/θ/', label: 'TH (as in thin)', letter: 'th' },
-      { symbol: '/ɪ/', label: 'short I', letter: 'i' },
-      { symbol: '/n/', label: 'N as in nose', letter: 'n' },
+      { symbol: '/k/', label: 'K as in kite', letter: 'c' },
+      { symbol: '/æ/', label: 'short A', letter: 'a' },
+      { symbol: '/m/', label: 'M as in map', letter: 'm' },
+      { symbol: '/ə/', label: 'schwa', letter: 'e' },
+      { symbol: '/l/', label: 'L as in lamp', letter: 'l' },
     ],
   },
   {
-    id: 'ship',
-    phonemeWord: '/ʃɪp/',
-    englishEquivalence: 'ship',
-    hint: 'The first sound is like the beginning of “ship”.',
-    clue: 'SH (as in ship)',
+    id: 'river',
+    phonemeWord: '/rɪvər/',
+    englishEquivalence: 'river',
+    hint: 'This word begins with R and has V in the middle.',
+    clue: 'R + V middle',
     cards: [
-      { symbol: '/ʃ/', label: 'SH (as in ship)', letter: 'sh' },
+      { symbol: '/r/', label: 'R as in rabbit', letter: 'r' },
       { symbol: '/ɪ/', label: 'short I', letter: 'i' },
+      { symbol: '/v/', label: 'V as in van', letter: 'v' },
+      { symbol: '/ə/', label: 'schwa', letter: 'e' },
+      { symbol: '/r/', label: 'R as in rabbit', letter: 'r' },
+    ],
+  },
+  {
+    id: 'pocket',
+    phonemeWord: '/pɒkɪt/',
+    englishEquivalence: 'pocket',
+    hint: 'This word starts with P and ends with T.',
+    clue: 'P + short O',
+    cards: [
       { symbol: '/p/', label: 'P as in pig', letter: 'p' },
+      { symbol: '/ɒ/', label: 'short O', letter: 'o' },
+      { symbol: '/k/', label: 'K as in kite', letter: 'ck' },
+      { symbol: '/ɪ/', label: 'short I', letter: 'i' },
+      { symbol: '/t/', label: 'T as in tap', letter: 't' },
     ],
   },
   {
-    id: 'sock',
-    phonemeWord: '/sɒk/',
-    englishEquivalence: 'sock',
-    hint: 'This word begins with an S sound and ends with a K sound.',
-    clue: 'S (as in sun)',
+    id: 'metal',
+    phonemeWord: '/mɛtəl/',
+    englishEquivalence: 'metal',
+    hint: 'This word has a short E and ends with a schwa plus L.',
+    clue: 'M + short E',
     cards: [
-      { symbol: '/s/', label: 'S (as in sun)', letter: 's' },
-      { symbol: '/ɒ/', label: 'short O', letter: 'o' },
-      { symbol: '/k/', label: 'K as in kite', letter: 'k' },
+      { symbol: '/m/', label: 'M as in map', letter: 'm' },
+      { symbol: '/ɛ/', label: 'short E', letter: 'e' },
+      { symbol: '/t/', label: 'T as in tap', letter: 't' },
+      { symbol: '/ə/', label: 'schwa', letter: 'e' },
+      { symbol: '/l/', label: 'L as in lamp', letter: 'l' },
+    ],
+  },
+  {
+    id: 'ticket',
+    phonemeWord: '/tɪkət/',
+    englishEquivalence: 'ticket',
+    hint: 'This word starts with T and has K in the middle.',
+    clue: 'T + K middle',
+    cards: [
+      { symbol: '/t/', label: 'T as in tap', letter: 't' },
+      { symbol: '/ɪ/', label: 'short I', letter: 'i' },
+      { symbol: '/k/', label: 'K as in kite', letter: 'ck' },
+      { symbol: '/ə/', label: 'schwa', letter: 'l' },
+      { symbol: '/t/', label: 'T as in tap', letter: 'et' },
     ],
   },
 ];
@@ -64,22 +150,10 @@ function downloadHtml(content: string, fileName: string) {
 
 export function WordleBuilder() {
   const [selectedWordId, setSelectedWordId] = useState(wordOptions[0].id);
-  const [difficulty, setDifficulty] = useState<Difficulty>('easy');
-  const [guess, setGuess] = useState('');
-  const [feedback, setFeedback] = useState('');
-  const [isCorrect, setIsCorrect] = useState(false);
 
   const selectedWord = useMemo(() => wordOptions.find((word) => word.id === selectedWordId) ?? wordOptions[0], [selectedWordId]);
-
-  const handleGuessSubmit = () => {
-    if (guess.trim().toLowerCase() === selectedWord.englishEquivalence) {
-      setIsCorrect(true);
-      setFeedback(`Correct! ${selectedWord.phonemeWord} matches ${selectedWord.englishEquivalence}.`);
-    } else {
-      setIsCorrect(false);
-      setFeedback('Try again. Use the phoneme clues to build the word.');
-    }
-  };
+  const targetSymbols = useMemo(() => selectedWord.cards.map((card) => stripSlashes(card.symbol)), [selectedWord]);
+  const keyboardEntries = useMemo(() => buildKeyboardEntries(wordOptions), []);
 
   const handleGenerate = () => {
     const html = `<!DOCTYPE html>
@@ -87,38 +161,228 @@ export function WordleBuilder() {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${selectedWord.englishEquivalence} Wordle</title>
+  <title>Phoneme Wordle</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #f4f7fb; color: #14213d; }
-    main { max-width: 760px; margin: 0 auto; padding: 24px; }
+    main { max-width: 860px; margin: 0 auto; padding: 24px; }
     .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 8px 24px rgba(20,33,61,0.1); }
-    .chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
-    .chip { padding: 10px 12px; border-radius: 999px; border: 1px solid #a8c0ff; background: #eef4ff; cursor: pointer; }
-    button { border: none; border-radius: 999px; padding: 10px 14px; background: #1f5eff; color: white; cursor: pointer; }
     .hint { color: #4b5563; font-size: 0.95rem; margin-top: 8px; }
+    .board { display: grid; gap: 8px; margin: 18px 0 24px; justify-content: center; }
+    .row { display: grid; gap: 8px; }
+    .tile {
+      width: 58px;
+      height: 58px;
+      border: 2px solid #dbeafe;
+      border-radius: 10px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 22px;
+      color: #14213d;
+    }
+    .tile.correct { background: #22c55e; border-color: #16a34a; color: #fff; }
+    .tile.present { background: #f59e0b; border-color: #d97706; color: #fff; }
+    .tile.absent { background: #94a3b8; border-color: #64748b; color: #fff; }
+    .keyboard { display: grid; gap: 8px; justify-content: center; }
+    .kb-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .key {
+      min-width: 44px;
+      padding: 10px 12px;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      background: #eef4ff;
+      color: #14213d;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .key:hover { background: #dbeafe; }
+    .key.correct { background: #22c55e; border-color: #16a34a; color: #fff; }
+    .key.present { background: #f59e0b; border-color: #d97706; color: #fff; }
+    .key.absent { background: #94a3b8; border-color: #64748b; color: #fff; }
+    .controls { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+    .control-key {
+      min-width: 96px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #1f5eff;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .control-key:hover { background: #1d4ed8; }
+    .result { margin-top: 14px; font-weight: 600; text-align: center; }
+    .meta { color: #334155; text-align: center; margin-top: 6px; }
   </style>
 </head>
 <body>
   <main>
     <div class="card">
       <h1>Phoneme Wordle</h1>
-      <p>Target phoneme word: <strong>${selectedWord.phonemeWord}</strong></p>
-      <p>English equivalence: <strong>${selectedWord.englishEquivalence}</strong></p>
-      <div class="chips">
-        ${selectedWord.cards.map((card) => `<span class="chip" title="${card.label}">${card.symbol}</span>`).join('')}
+      <p class="meta">Use the phoneme keyboard to guess the word.</p>
+
+      <div id="board" class="board"></div>
+
+      <div class="keyboard" id="keyboard">
+        <div class="kb-row" id="kb-row"></div>
       </div>
-      <p class="hint">${difficulty === 'hard' ? 'No extra hints are shown.' : selectedWord.hint}</p>
-      <input id="guess" placeholder="Enter the English word" style="padding:10px; border-radius:8px; border:1px solid #cbd5e1; width: 100%; margin: 12px 0;" />
-      <button onclick="checkGuess()">Check answer</button>
-      <p id="result" style="margin-top:12px;"></p>
+      <div class="controls">
+        <button class="control-key" id="enter-btn">Enter</button>
+        <button class="control-key" id="delete-btn">Delete</button>
+      </div>
+      <p id="result" class="result"></p>
     </div>
   </main>
   <script>
-    function checkGuess() {
-      const guess = document.getElementById('guess').value.trim().toLowerCase();
-      const answer = '${selectedWord.englishEquivalence}';
-      document.getElementById('result').textContent = guess === answer ? 'Correct! The phoneme word matches the English answer.' : 'Try again.';
+    const target = ${JSON.stringify(targetSymbols)};
+    const answerWord = ${JSON.stringify(selectedWord.englishEquivalence)};
+    const keyboardEntries = ${JSON.stringify(keyboardEntries)};
+    const maxAttempts = 6;
+    let guesses = [];
+    let currentGuess = [];
+    let solved = false;
+    const keyStates = {};
+
+    function renderKeyboard() {
+      const row = document.getElementById('kb-row');
+      if (!row) return;
+      row.innerHTML = '';
+
+      keyboardEntries.forEach((entry) => {
+        const btn = document.createElement('button');
+        btn.className = 'key';
+        btn.setAttribute('data-symbol', entry.symbol);
+        btn.setAttribute('title', entry.label);
+        btn.setAttribute('aria-label', '/' + entry.symbol + '/ ' + entry.label);
+        btn.textContent = '/' + entry.symbol + '/';
+        btn.addEventListener('click', () => addSymbol(entry.symbol));
+        row.appendChild(btn);
+      });
     }
+
+    function statePriority(state) {
+      if (state === 'correct') return 3;
+      if (state === 'present') return 2;
+      if (state === 'absent') return 1;
+      return 0;
+    }
+
+    function updateKeyState(symbol, state) {
+      const current = keyStates[symbol];
+      if (!current || statePriority(state) > statePriority(current)) {
+        keyStates[symbol] = state;
+      }
+    }
+
+    function evaluateGuess(guess) {
+      const result = Array(guess.length).fill('absent');
+      const remainingTarget = [...target];
+
+      for (let i = 0; i < guess.length; i += 1) {
+        if (guess[i] === target[i]) {
+          result[i] = 'correct';
+          remainingTarget[i] = null;
+        }
+      }
+
+      for (let i = 0; i < guess.length; i += 1) {
+        if (result[i] === 'correct') continue;
+        const idx = remainingTarget.indexOf(guess[i]);
+        if (idx !== -1) {
+          result[i] = 'present';
+          remainingTarget[idx] = null;
+        }
+      }
+
+      return result;
+    }
+
+    function render() {
+      const board = document.getElementById('board');
+      const result = document.getElementById('result');
+      board.innerHTML = '';
+      board.style.gridTemplateRows = 'repeat(' + maxAttempts + ', auto)';
+
+      for (let row = 0; row < maxAttempts; row += 1) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'row';
+        rowEl.style.gridTemplateColumns = 'repeat(' + target.length + ', 58px)';
+
+        const guess = guesses[row];
+        const score = guess ? evaluateGuess(guess) : null;
+
+        for (let col = 0; col < target.length; col += 1) {
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+
+          if (guess) {
+            tile.textContent = guess[col] || '';
+            tile.classList.add(score[col]);
+          } else if (row === guesses.length) {
+            tile.textContent = currentGuess[col] || '';
+          }
+
+          rowEl.appendChild(tile);
+        }
+
+        board.appendChild(rowEl);
+      }
+
+      document.querySelectorAll('.key[data-symbol]').forEach((btn) => {
+        btn.classList.remove('correct', 'present', 'absent');
+        const symbol = btn.getAttribute('data-symbol');
+        const state = keyStates[symbol];
+        if (state) {
+          btn.classList.add(state);
+        }
+      });
+
+      if (solved) {
+        result.textContent = 'English equivalence: ' + answerWord;
+        result.style.color = '#15803d';
+      } else if (guesses.length >= maxAttempts) {
+        result.textContent = 'Out of attempts. The answer was /' + target.join('') + '/ (' + answerWord + ').';
+        result.style.color = '#b91c1c';
+      } else {
+        result.textContent = '';
+        result.style.color = '#334155';
+      }
+    }
+
+    function addSymbol(symbol) {
+      if (solved || guesses.length >= maxAttempts) return;
+      if (currentGuess.length >= target.length) return;
+      currentGuess.push(symbol);
+      render();
+    }
+
+    function deleteSymbol() {
+      if (solved || guesses.length >= maxAttempts) return;
+      currentGuess.pop();
+      render();
+    }
+
+    function submitGuess() {
+      if (solved || guesses.length >= maxAttempts) return;
+      if (currentGuess.length !== target.length) return;
+
+      const guess = [...currentGuess];
+      guesses.push(guess);
+      const score = evaluateGuess(guess);
+      score.forEach((state, index) => updateKeyState(guess[index], state));
+
+      solved = score.every((entry) => entry === 'correct');
+      currentGuess = [];
+      render();
+    }
+
+    renderKeyboard();
+    document.getElementById('delete-btn').addEventListener('click', deleteSymbol);
+    document.getElementById('enter-btn').addEventListener('click', submitGuess);
+
+    render();
   </script>
 </body>
 </html>`;
@@ -126,7 +390,7 @@ export function WordleBuilder() {
     downloadHtml(html, 'phoneme-wordle.html');
   };
 
-  const hintText = difficulty === 'hard' ? 'No extra hints are shown.' : selectedWord.hint;
+  const hintText = selectedWord.hint;
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -152,9 +416,6 @@ export function WordleBuilder() {
               value={selectedWordId}
               onChange={(event) => {
                 setSelectedWordId(event.target.value);
-                setGuess('');
-                setFeedback('');
-                setIsCorrect(false);
               }}
               className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
             >
@@ -166,23 +427,9 @@ export function WordleBuilder() {
             </select>
           </label>
 
-          <label className="block text-sm font-medium">
-            Difficulty
-            <select
-              value={difficulty}
-              onChange={(event) => setDifficulty(event.target.value as Difficulty)}
-              className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
-            >
-              <option value="easy">Easy — show the hint</option>
-              <option value="medium">Medium — show a phoneme cue</option>
-              <option value="hard">Hard — no extra hint</option>
-            </select>
-          </label>
-
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Teacher preview</p>
             <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">Phoneme word: {selectedWord.phonemeWord}</p>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">English equivalence: {selectedWord.englishEquivalence}</p>
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{hintText}</p>
           </div>
         </div>
@@ -190,48 +437,44 @@ export function WordleBuilder() {
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">Live preview</p>
-        <h3 className="mt-1 text-xl font-semibold">Phoneme clue cards</h3>
-        <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
-          Hover over each cue to reveal the phonetic-to-English equivalence. Click a cue to build your answer.
-        </p>
+        <h3 className="mt-1 text-3xl font-semibold">Phoneme Wordle</h3>
+        <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-400">Use the phoneme keyboard to guess the word.</p>
 
-        <div className="mt-4 flex flex-wrap gap-3">
-          {selectedWord.cards.map((card) => (
+        <div className="mt-5 grid justify-center gap-2">
+          {Array.from({ length: 6 }).map((_, rowIndex) => (
+            <div key={rowIndex} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${targetSymbols.length}, 58px)` }}>
+              {Array.from({ length: targetSymbols.length }).map((__, cellIndex) => (
+                <div
+                  key={`${rowIndex}-${cellIndex}`}
+                  className="flex h-[58px] w-[58px] items-center justify-center rounded-[10px] border-2 border-sky-100 bg-white text-xl font-bold text-slate-900"
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          {keyboardEntries.map((entry) => (
             <button
-              key={card.symbol}
+              key={entry.symbol}
               type="button"
-              title={card.label}
-              onClick={() => setGuess((current) => current + card.letter)}
-              className="rounded-full border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-300"
+              title={entry.label}
+              aria-label={`/${entry.symbol}/ ${entry.label}`}
+              disabled
+              className="min-w-[44px] cursor-default rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-slate-900"
             >
-              {card.symbol} {card.label}
+              /{entry.symbol}/
             </button>
           ))}
         </div>
 
-        <label className="mt-6 block text-sm font-medium">
-          Current guess
-          <input
-            value={guess}
-            onChange={(event) => setGuess(event.target.value)}
-            placeholder="Type the English answer"
-            className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
-          />
-        </label>
-
-        <button
-          type="button"
-          onClick={handleGuessSubmit}
-          className="mt-4 rounded-full bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700"
-        >
-          Check answer
-        </button>
-
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800">
-          <p className="font-medium text-slate-700 dark:text-slate-300">Feedback</p>
-          <p className={`mt-2 ${isCorrect ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-400'}`}>
-            {feedback || 'The answer will appear here after you check the guess.'}
-          </p>
+        <div className="mt-4 flex justify-center gap-2">
+          <button type="button" disabled className="min-w-[96px] rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white opacity-90">
+            Enter
+          </button>
+          <button type="button" disabled className="min-w-[96px] rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white opacity-90">
+            Delete
+          </button>
         </div>
       </div>
     </section>
