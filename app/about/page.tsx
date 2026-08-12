@@ -50,8 +50,8 @@ export default function AboutPage() {
           Start on the home page, choose either the Wordle or Word Search builder, adjust the settings, preview the activity, and then generate the HTML file for classroom use.
         </p>
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-          <video controls className="w-full" preload="metadata" poster="https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=800&q=80">
-            <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4" />
+          <video controls className="w-full" preload="metadata" poster="/Screenshot 2026-08-12 175400.png">
+            <source src="/video1833123053.mp4" type="video/mp4" />
           </video>
         </div>
         <div className="mt-6 flex flex-wrap gap-3">
