@@ -202,9 +202,10 @@ export function WordSearchBuilder() {
   const previewCellSize = boardState?.size === 12 ? 30 : boardState?.size === 8 ? 42 : 36;
 
   const handleGenerate = () => {
-    if (!boardState) return;
+    const generatedBoardState = buildWordSearch(difficulty);
+    setBoardState(generatedBoardState);
 
-    const wordListHtml = Object.entries(boardState.placedWordsMap)
+    const wordListHtml = Object.entries(generatedBoardState.placedWordsMap)
       .map(([phoneme, { positions }]) => {
         const positionStr = positions.map(([r, c]) => `${r},${c}`).join('|');
         return `<span class="pill" data-positions="${positionStr}">${phoneme}</span>`;
@@ -227,7 +228,13 @@ export function WordSearchBuilder() {
     button { border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
     .show-answers-btn { background: #10b981; color: white; }
     .show-answers-btn:hover { background: #059669; }
-    .grid { display: grid; gap: 6px; grid-template-columns: repeat(${boardState.size}, 45px); justify-content: center; margin: 30px auto; user-select: none; }
+    .show-answers-btn.inactive,
+    .show-answers-btn.inactive:hover {
+      background: #10b981;
+      color: white;
+      cursor: default;
+    }
+    .grid { display: grid; gap: 6px; grid-template-columns: repeat(${generatedBoardState.size}, 45px); justify-content: center; margin: 30px auto; user-select: none; }
     .grid.locked .cell { cursor: default; }
     .cell { 
       width: 45px; height: 45px; 
@@ -247,6 +254,13 @@ export function WordSearchBuilder() {
     .cell.selected { background: #4ade80; color: white; border-color: #22c55e; }
     .cell.found-cell { background: #4ade80; color: white; border-color: #22c55e; }
     .cell.answer { background: #fbbf24; color: white; border-color: #f59e0b; }
+    .cell.answer.found-cell { background: #4ade80; color: white; border-color: #22c55e; }
+    .cell.answer.selected {
+      background: #fbbf24;
+      color: white;
+      border-color: #22c55e;
+      box-shadow: inset 0 0 0 3px rgba(34, 197, 94, 0.35);
+    }
     .word-list { 
       margin-top: 30px; 
       padding: 20px; 
@@ -277,11 +291,11 @@ export function WordSearchBuilder() {
     <p class="instructions">Find the phoneme-based words in the grid. Drag across letters to select them.</p>
     
     <div class="button-group">
-      <button class="show-answers-btn" onclick="toggleAnswers()">Show Answers</button>
+      <button class="show-answers-btn" id="show-answers-btn" onclick="toggleAnswers()">Show Answers</button>
     </div>
 
     <div class="grid" id="grid">
-      ${boardState.board
+      ${generatedBoardState.board
         .flat()
         .map((letter, index) => `<div class="cell" data-index="${index}">${letter}</div>`)
         .join('')}
@@ -296,9 +310,9 @@ export function WordSearchBuilder() {
   </main>
 
   <script>
-    const boardSize = ${boardState.size};
+    const boardSize = ${generatedBoardState.size};
     const placedWords = ${JSON.stringify(
-      Object.entries(boardState.placedWordsMap).map(([phoneme, { positions }]) => ({
+      Object.entries(generatedBoardState.placedWordsMap).map(([phoneme, { positions }]) => ({
         phoneme,
         positions,
       }))
@@ -401,6 +415,7 @@ export function WordSearchBuilder() {
             foundCells.add(getCellIndex(r, c));
             const cell = document.querySelector(\`[data-index="\${getCellIndex(r, c)}"]\`);
             cell.classList.add('found-cell');
+            cell.classList.remove('answer');
             cell.classList.remove('selected');
           });
           break;
@@ -414,14 +429,24 @@ export function WordSearchBuilder() {
         if (correctWords.size === placedWords.length) {
           gameSolved = true;
           const grid = document.getElementById('grid');
+          const showAnswersButton = document.getElementById('show-answers-btn');
           if (grid) {
             grid.classList.add('locked');
+          }
+          if (showAnswersButton) {
+            showAnswersButton.disabled = true;
+            showAnswersButton.classList.add('inactive');
           }
         }
       }
     }
 
     function toggleAnswers() {
+      if (gameSolved) return;
+
+      isDragging = false;
+      dragStartIndex = null;
+      clearSelection();
       showAnswers = !showAnswers;
       document.querySelectorAll('.cell').forEach((cell, index) => {
         if (showAnswers) {

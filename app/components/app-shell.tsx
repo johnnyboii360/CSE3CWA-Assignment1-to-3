@@ -74,6 +74,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [menuOpen]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [pathname]);
+
   const spacingClass = layout === 'compact' ? 'space-y-4' : 'space-y-8';
 
   return (
