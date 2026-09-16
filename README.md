@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+ # Speech Pathology Activity Builder
 
-## Getting Started
+Assessment 2 extends the Assessment 1 Next.js builder with SQLite, Prisma, CRUD APIs, validation, and Docker support.
 
-First, run the development server:
+## Local setup
 
-```bash
+```powershell
+Copy-Item .env.example .env
+npm install
+npm run db:generate
+npm run db:push
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. **Activity Data** manages saved activities and words. The health check is available at `http://localhost:3000/api/health` and returns 200 when SQLite is available.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `GET/POST /api/activity-sets` lists or creates activities.
+- `GET/PUT/DELETE /api/activity-sets/:id` retrieves, updates, or deletes an activity and its words.
+- `PUT/DELETE /api/words/:id` updates or deletes an individual word.
+- `GET /api/health` checks the API and database connection.
 
-## Learn More
+Phonemes are stored as JSON arrays so multi-character symbols such as `tʃ` are preserved as one value.
 
-To learn more about Next.js, take a look at the following resources:
+## Docker
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```powershell
+docker compose up --build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open `http://localhost:3000` after the container starts. SQLite is persisted in the `activity-data` volume.
 
-## Deploy on Vercel
+## Demonstration flow
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Open **Activity Data** and show the student ID in the footer.
+2. Create, edit, refresh, and delete an activity containing multiple words.
+3. Open `/api/health` and show the 200 response.
+4. Run the Docker compose command and repeat the health check.
+5. Use the Wordle and Word Search builders to generate downloadable HTML activities.

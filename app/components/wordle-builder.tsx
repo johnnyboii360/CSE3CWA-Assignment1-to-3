@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type WordOption = {
   id: string;
@@ -10,6 +10,29 @@ type WordOption = {
   clue: string;
   cards: Array<{ symbol: string; label: string; letter: string }>;
 };
+
+type GuessState = 'correct' | 'present' | 'absent';
+
+type StoredWord = {
+  id: string;
+  phonemeWord: string;
+  englishEquivalence: string;
+  phonemes: string | string[];
+};
+
+type StoredActivity = {
+  id: string;
+  title: string;
+  hint: string;
+  generatedHtmlSettings?: Record<string, unknown> | string;
+  words: StoredWord[];
+};
+
+function getMaxAttempts(settings: StoredActivity['generatedHtmlSettings']): number {
+  const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : settings;
+  const value = typeof parsed?.maxAttempts === 'number' ? parsed.maxAttempts : 6;
+  return Math.min(10, Math.max(1, Math.round(value)));
+}
 
 const distractorKeys: Array<{ symbol: string; label: string }> = [
   { symbol: 'θ', label: 'TH (as in thin)' },
@@ -63,6 +86,36 @@ function buildKeyboardEntries(options: WordOption[]) {
       symbol,
       label: labelMap.get(symbol) ?? symbol,
     }));
+}
+
+function evaluateGuess(guess: string[], target: string[]): GuessState[] {
+  const result: GuessState[] = Array(guess.length).fill('absent');
+  const remainingTarget: Array<string | null> = [...target];
+
+  guess.forEach((symbol, index) => {
+    if (symbol === target[index]) {
+      result[index] = 'correct';
+      remainingTarget[index] = null;
+    }
+  });
+
+  guess.forEach((symbol, index) => {
+    if (result[index] === 'correct') return;
+
+    const targetIndex = remainingTarget.indexOf(symbol);
+    if (targetIndex !== -1) {
+      result[index] = 'present';
+      remainingTarget[targetIndex] = null;
+    }
+  });
+
+  return result;
+}
+
+function getStatePriority(state: GuessState): number {
+  if (state === 'correct') return 3;
+  if (state === 'present') return 2;
+  return 1;
 }
 
 const wordOptions: WordOption[] = [
@@ -138,6 +191,18 @@ const wordOptions: WordOption[] = [
   },
 ];
 
+function wordOptionFromStoredWord(word: StoredWord): WordOption {
+  const phonemes = Array.isArray(word.phonemes) ? word.phonemes : JSON.parse(word.phonemes || '[]');
+  return {
+    id: `stored-${word.id}`,
+    phonemeWord: word.phonemeWord,
+    englishEquivalence: word.englishEquivalence,
+    hint: `Build the phoneme sequence for ${word.englishEquivalence}.`,
+    clue: phonemes.join(' + '),
+    cards: phonemes.map((symbol: string, index: number) => ({ symbol: `/${symbol}/`, label: `Phoneme ${symbol}`, letter: word.englishEquivalence[index] ?? '' })),
+  };
+}
+
 function downloadHtml(content: string, fileName: string) {
   const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -148,14 +213,107 @@ function downloadHtml(content: string, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character] ?? character);
+}
+
 export function WordleBuilder() {
   const [selectedWordId, setSelectedWordId] = useState(wordOptions[0].id);
+  const [storedActivities, setStoredActivities] = useState<StoredActivity[]>([]);
+  const [selectedActivityId, setSelectedActivityId] = useState('');
+  const [guesses, setGuesses] = useState<string[][]>([]);
+  const [currentGuess, setCurrentGuess] = useState<string[]>([]);
+  const [keyStates, setKeyStates] = useState<Record<string, GuessState>>({});
+  const [solved, setSolved] = useState(false);
 
-  const selectedWord = useMemo(() => wordOptions.find((word) => word.id === selectedWordId) ?? wordOptions[0], [selectedWordId]);
+  const selectedActivity = storedActivities.find((activity) => activity.id === selectedActivityId);
+  const availableWordOptions = useMemo(() => selectedActivity ? selectedActivity.words.map(wordOptionFromStoredWord) : wordOptions, [selectedActivity]);
+  const selectedWord = useMemo(() => availableWordOptions.find((word) => word.id === selectedWordId) ?? availableWordOptions[0], [availableWordOptions, selectedWordId]);
   const targetSymbols = useMemo(() => selectedWord.cards.map((card) => stripSlashes(card.symbol)), [selectedWord]);
-  const keyboardEntries = useMemo(() => buildKeyboardEntries(wordOptions), []);
+  const keyboardEntries = useMemo(() => buildKeyboardEntries(availableWordOptions), [availableWordOptions]);
+  const maxAttempts = getMaxAttempts(selectedActivity?.generatedHtmlSettings);
+
+  useEffect(() => {
+    const loadActivities = () => {
+      fetch('/api/activity-sets?type=WORDLE')
+        .then((response) => response.ok ? response.json() : [])
+        .then((activities: StoredActivity[]) => {
+          setStoredActivities(activities);
+          if (activities.length > 0) {
+            setSelectedActivityId((current) => current || activities[0].id);
+            setSelectedWordId((current) => current || `stored-${activities[0].words[0].id}`);
+          }
+        })
+        .catch(() => setStoredActivities([]));
+    };
+
+    loadActivities();
+    window.addEventListener('focus', loadActivities);
+    document.addEventListener('visibilitychange', loadActivities);
+    return () => {
+      window.removeEventListener('focus', loadActivities);
+      document.removeEventListener('visibilitychange', loadActivities);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedActivity && !selectedActivity.words.some((word) => `stored-${word.id}` === selectedWordId)) {
+      // keep the selection valid when the active activity's word list changes
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedWordId(`stored-${selectedActivity.words[0].id}`);
+    }
+  }, [selectedActivity, selectedWordId]);
+
+  useEffect(() => {
+    // reset the guess board whenever a new word is selected
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGuesses([]);
+    setCurrentGuess([]);
+    setKeyStates({});
+    setSolved(false);
+  }, [selectedWordId]);
+
+  const addSymbol = (symbol: string) => {
+    if (solved || guesses.length >= maxAttempts || currentGuess.length >= targetSymbols.length) return;
+    setCurrentGuess((guess) => [...guess, symbol]);
+  };
+
+  const deleteSymbol = () => {
+    if (solved || guesses.length >= maxAttempts) return;
+    setCurrentGuess((guess) => guess.slice(0, -1));
+  };
+
+  const submitGuess = () => {
+    if (solved || guesses.length >= maxAttempts || currentGuess.length !== targetSymbols.length) return;
+
+    const submittedGuess = [...currentGuess];
+    const score = evaluateGuess(submittedGuess, targetSymbols);
+
+    setGuesses((existingGuesses) => [...existingGuesses, submittedGuess]);
+    setKeyStates((existingStates) => {
+      const nextStates = { ...existingStates };
+      submittedGuess.forEach((symbol, index) => {
+        const state = score[index];
+        const previousState = nextStates[symbol];
+        if (!previousState || getStatePriority(state) > getStatePriority(previousState)) {
+          nextStates[symbol] = state;
+        }
+      });
+      return nextStates;
+    });
+    setSolved(score.every((state) => state === 'correct'));
+    setCurrentGuess([]);
+  };
 
   const handleGenerate = () => {
+    const generatedHint = escapeHtml(selectedActivity?.hint || selectedWord.hint);
+    const generatedMaxAttempts = getMaxAttempts(selectedActivity?.generatedHtmlSettings);
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -190,14 +348,14 @@ export function WordleBuilder() {
     .key {
       min-width: 44px;
       padding: 10px 12px;
-      border: 1px solid #bfdbfe;
+      border: 1px solid #bae6fd;
       border-radius: 8px;
-      background: #eef4ff;
-      color: #14213d;
+      background: #f0f9ff;
+      color: #0f172a;
       cursor: pointer;
       font-weight: 600;
     }
-    .key:hover { background: #dbeafe; }
+    .key:hover { background: #e0f2fe; }
     .key.correct { background: #22c55e; border-color: #16a34a; color: #fff; }
     .key.present { background: #f59e0b; border-color: #d97706; color: #fff; }
     .key.absent { background: #94a3b8; border-color: #64748b; color: #fff; }
@@ -213,6 +371,9 @@ export function WordleBuilder() {
       font-weight: 600;
     }
     .control-key:hover { background: #1d4ed8; }
+    .key:disabled, .control-key:disabled { cursor: default; }
+    .key:disabled:hover { background: #f0f9ff; }
+    .control-key:disabled:hover { background: #1f5eff; }
     .result { margin-top: 14px; font-weight: 600; text-align: center; }
     .meta { color: #334155; text-align: center; margin-top: 6px; }
   </style>
@@ -221,7 +382,7 @@ export function WordleBuilder() {
   <main>
     <div class="card">
       <h1>Phoneme Wordle</h1>
-      <p class="meta">Use the phoneme keyboard to guess the word.</p>
+      <p class="meta">${generatedHint}</p>
 
       <div id="board" class="board"></div>
 
@@ -239,7 +400,7 @@ export function WordleBuilder() {
     const target = ${JSON.stringify(targetSymbols)};
     const answerWord = ${JSON.stringify(selectedWord.englishEquivalence)};
     const keyboardEntries = ${JSON.stringify(keyboardEntries)};
-    const maxAttempts = 6;
+    const maxAttempts = ${generatedMaxAttempts};
     let guesses = [];
     let currentGuess = [];
     let solved = false;
@@ -337,7 +498,13 @@ export function WordleBuilder() {
         if (state) {
           btn.classList.add(state);
         }
+        btn.disabled = solved || guesses.length >= maxAttempts;
       });
+
+      const enterButton = document.getElementById('enter-btn');
+      const deleteButton = document.getElementById('delete-btn');
+      if (enterButton) enterButton.disabled = solved || guesses.length >= maxAttempts;
+      if (deleteButton) deleteButton.disabled = solved || guesses.length >= maxAttempts;
 
       if (solved) {
         result.textContent = 'English equivalence: ' + answerWord;
@@ -410,6 +577,14 @@ export function WordleBuilder() {
         </div>
 
         <div className="mt-6 space-y-4">
+          {storedActivities.length > 0 && (
+            <label className="block text-sm font-medium">
+              Saved activity
+              <select value={selectedActivityId} onChange={(event) => setSelectedActivityId(event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800">
+                {storedActivities.map((activity) => <option key={activity.id} value={activity.id}>{activity.title}</option>)}
+              </select>
+            </label>
+          )}
           <label className="block text-sm font-medium">
             Choose a phoneme word
             <select
@@ -419,7 +594,7 @@ export function WordleBuilder() {
               }}
               className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
             >
-              {wordOptions.map((word) => (
+              {availableWordOptions.map((word) => (
                 <option key={word.id} value={word.id}>
                   {word.phonemeWord} • {word.englishEquivalence}
                 </option>
@@ -430,7 +605,7 @@ export function WordleBuilder() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Teacher preview</p>
             <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">Phoneme word: {selectedWord.phonemeWord}</p>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{hintText}</p>
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">{selectedActivity?.hint || hintText}</p>
           </div>
         </div>
       </div>
@@ -438,19 +613,34 @@ export function WordleBuilder() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">Live preview</p>
         <h3 className="mt-1 text-3xl font-semibold">Phoneme Wordle</h3>
-        <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-400">Use the phoneme keyboard to guess the word.</p>
+        <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-400">{selectedActivity?.hint || hintText}</p>
 
         <div className="mt-5 grid justify-center gap-2">
-          {Array.from({ length: 6 }).map((_, rowIndex) => (
+          {Array.from({ length: maxAttempts }).map((_, rowIndex) => {
+            const guess = guesses[rowIndex];
+            const score = guess ? evaluateGuess(guess, targetSymbols) : null;
+
+            return (
             <div key={rowIndex} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${targetSymbols.length}, 58px)` }}>
               {Array.from({ length: targetSymbols.length }).map((__, cellIndex) => (
                 <div
                   key={`${rowIndex}-${cellIndex}`}
-                  className="flex h-[58px] w-[58px] items-center justify-center rounded-[10px] border-2 border-sky-100 bg-white text-xl font-bold text-slate-900"
-                />
+                  className={`flex h-[58px] w-[58px] items-center justify-center rounded-[10px] border-2 text-xl font-bold transition ${
+                    score
+                      ? score[cellIndex] === 'correct'
+                        ? 'border-green-600 bg-green-500 text-white'
+                        : score[cellIndex] === 'present'
+                          ? 'border-amber-600 bg-amber-400 text-white'
+                          : 'border-slate-500 bg-slate-400 text-white'
+                      : 'border-sky-100 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white'
+                  }`}
+                >
+                  {guess?.[cellIndex] ?? (rowIndex === guesses.length ? currentGuess[cellIndex] ?? '' : '')}
+                </div>
               ))}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -460,8 +650,17 @@ export function WordleBuilder() {
               type="button"
               title={entry.label}
               aria-label={`/${entry.symbol}/ ${entry.label}`}
-              disabled
-              className="min-w-[44px] cursor-default rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-slate-900"
+              onClick={() => addSymbol(entry.symbol)}
+              disabled={solved || guesses.length >= maxAttempts}
+              className={`min-w-[44px] rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:cursor-default ${
+                keyStates[entry.symbol] === 'correct'
+                  ? 'border-green-600 bg-green-500 text-white'
+                  : keyStates[entry.symbol] === 'present'
+                    ? 'border-amber-600 bg-amber-400 text-white'
+                    : keyStates[entry.symbol] === 'absent'
+                      ? 'border-slate-500 bg-slate-400 text-white'
+                      : 'border-sky-200 bg-sky-50 text-slate-900 hover:bg-sky-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white'
+              }`}
             >
               /{entry.symbol}/
             </button>
@@ -469,13 +668,21 @@ export function WordleBuilder() {
         </div>
 
         <div className="mt-4 flex justify-center gap-2">
-          <button type="button" disabled className="min-w-[96px] rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white opacity-90">
+          <button type="button" onClick={submitGuess} disabled={solved || guesses.length >= maxAttempts || currentGuess.length !== targetSymbols.length} className="min-w-[96px] rounded-lg bg-[#1f5eff] px-[14px] py-[10px] font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-default disabled:bg-[#1f5eff] disabled:text-white">
             Enter
           </button>
-          <button type="button" disabled className="min-w-[96px] rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white opacity-90">
+          <button type="button" onClick={deleteSymbol} disabled={solved || guesses.length >= maxAttempts || currentGuess.length === 0} className="min-w-[96px] rounded-lg bg-[#1f5eff] px-[14px] py-[10px] font-semibold text-white transition hover:bg-[#1d4ed8] disabled:cursor-default disabled:bg-[#1f5eff] disabled:text-white">
             Delete
           </button>
         </div>
+
+        <p className={`mt-4 min-h-6 text-center text-sm font-semibold ${solved ? 'text-green-700' : guesses.length >= maxAttempts ? 'text-red-700' : 'text-slate-600 dark:text-slate-400'}`}>
+          {solved
+            ? `English equivalence: ${selectedWord.englishEquivalence}`
+            : guesses.length >= maxAttempts
+              ? `Out of attempts. The answer was /${targetSymbols.join('')}/ (${selectedWord.englishEquivalence}).`
+              : ''}
+        </p>
       </div>
     </section>
   );
