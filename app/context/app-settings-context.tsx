@@ -5,17 +5,6 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 export type ThemeMode = "light" | "dark" | "system";
 export type LayoutMode = "comfortable" | "compact";
 
-function readCookieValue(name: string) {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  return document.cookie
-    .split("; ")
-    .find((entry) => entry.startsWith(`${name}=`))
-    ?.split("=")[1] ?? null;
-}
-
 export function getSystemTheme(): "light" | "dark" {
   if (typeof window === "undefined") {
     return "light";
@@ -42,32 +31,39 @@ type AppSettingsContextValue = {
 
 const AppSettingsContext = createContext<AppSettingsContextValue | undefined>(undefined);
 
-export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    const storedTheme = readCookieValue("theme");
-    return storedTheme === "dark" || storedTheme === "light" || storedTheme === "system"
-      ? storedTheme
-      : "system";
-  });
+export function AppSettingsProvider({
+  children,
+  initialTheme = "system",
+  initialLayout = "comfortable",
+}: {
+  children: React.ReactNode;
+  initialTheme?: ThemeMode;
+  initialLayout?: LayoutMode;
+}) {
+  const [theme, setThemeState] = useState<ThemeMode>(initialTheme);
+  const [layout, setLayoutState] = useState<LayoutMode>(initialLayout);
 
-  const [layout, setLayoutState] = useState<LayoutMode>(() => {
-    const storedLayout = readCookieValue("layout");
-    return storedLayout === "compact" || storedLayout === "comfortable"
-      ? storedLayout
-      : "comfortable";
-  });
+  const [hydrated] = useState(() => typeof window !== "undefined");
 
   const resolvedTheme = resolveTheme(theme);
 
   useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
     document.cookie = `theme=${theme}; path=/; max-age=31536000`;
     document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
     document.documentElement.setAttribute("data-theme", resolvedTheme);
-  }, [resolvedTheme, theme]);
+  }, [hydrated, resolvedTheme, theme]);
 
   useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
     document.cookie = `layout=${layout}; path=/; max-age=31536000`;
-  }, [layout]);
+  }, [hydrated, layout]);
 
   useEffect(() => {
     if (theme !== "system") {
