@@ -13,12 +13,17 @@ npm run db:seed
 npm run dev
 ```
 
-Open `http://localhost:3000`. **Activity Data** manages saved activities and words. The health check is available at `http://localhost:3000/api/health` and returns 200 when SQLite is available.
+Open `http://localhost:3000`. The application includes Wordle and Word Search builders, an **Activity Data** page for managing saved activities and words, an About page, and Settings for theme and layout preferences. The seed command creates starter Wordle and Word Search activities.
+
+The health check is available at `http://localhost:3000/api/health` and returns 200 when SQLite is available.
 
 ## API
 
 - `GET/POST /api/activity-sets` lists or creates activities.
+- `GET /api/activity-sets?type=WORDLE|WORD_SEARCH` filters activities by type.
 - `GET/PUT/DELETE /api/activity-sets/:id` retrieves, updates, or deletes an activity and its words.
+- `GET/POST /api/activity-sets/:id/words` lists or adds words for an activity.
+- `GET /api/words/:id` retrieves an individual word.
 - `PUT/DELETE /api/words/:id` updates or deletes an individual word.
 - `GET /api/health` checks the API and database connection.
 
