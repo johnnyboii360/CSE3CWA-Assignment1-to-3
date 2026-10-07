@@ -4,14 +4,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAppSettings } from '../context/app-settings-context';
+import { trackEvent } from '../../lib/track';
 
 const navItems = [
   { href: '/', label: 'Home' },
-  { href: '/about', label: 'About' },
   { href: '/wordle', label: 'Wordle' },
   { href: '/word-search', label: 'Word Search' },
   { href: '/activities', label: 'Activity Data' },
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/settings', label: 'Settings' },
+  { href: '/about', label: 'About' },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -38,6 +40,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [pathname]);
 
+  useEffect(() => {
+    const startedAt = Date.now();
+    let sent = false;
+
+    const sendPageView = () => {
+      if (sent) return;
+      sent = true;
+      trackEvent({ eventType: 'PAGE_VIEW', path: pathname, durationMs: Date.now() - startedAt });
+    };
+
+    window.addEventListener('pagehide', sendPageView);
+    return () => {
+      window.removeEventListener('pagehide', sendPageView);
+      sendPageView();
+    };
+  }, [pathname]);
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       <header className="relative z-30 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
@@ -47,7 +66,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               Speech Pathology Activity Builder
             </Link>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Assessment 1 • Frontend design and usability
+              {pathname === '/dashboard'
+                ? 'Assessment 3 • Data-Driven Dashboard and Reporting'
+                : pathname === '/activities'
+                ? 'Assessment 2 • Backend, Database, CRUD and Docker'
+                : 'Assessment 1 • Frontend Design and Usability'}
             </p>
           </div>
 

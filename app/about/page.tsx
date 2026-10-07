@@ -5,9 +5,9 @@ export default function AboutPage() {
     <>
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">About the assessment</p>
-        <h1 className="mt-2 text-3xl font-semibold">Frontend builder for phoneme-based classroom activities</h1>
+        <h1 className="mt-2 text-3xl font-semibold">Assessment 2: backend for phoneme-based classroom activities</h1>
         <p className="mt-4 max-w-3xl text-lg text-slate-600 dark:text-slate-400">
-          This assessment focuses on the frontend experience for teachers who are preparing speech pathology classroom activities. The builder allows a teacher to configure, preview, and export a playable Wordle or Word Search activity as a single HTML file.
+          Building on Assessment 1&apos;s frontend experience, this assessment focuses on backend implementation, SQLite database integration, CRUD operations, and Docker execution for speech pathology classroom activities.
         </p>
       </section>
 
@@ -24,6 +24,9 @@ export default function AboutPage() {
             <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Phoneme-based hints and cue cards</span>
           </li>
           <li className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+            <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300">SQLite persistence and CRUD APIs for activities and words</span>
+          </li>
+          <li className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
             <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300">One-click HTML download for browser use</span>
           </li>
         </ul>
@@ -32,7 +35,7 @@ export default function AboutPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-2xl font-semibold">Assessment scope</h2>
         <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
-          Assessment 1 is frontend only. The system is intentionally built to support future database-driven word selection and richer generation options in later assessment stages.
+          Assessment 2 extends the Assessment 1 frontend with database-backed activity and word management, validation, API health checks, and Docker support.
         </p>
       </section>
 

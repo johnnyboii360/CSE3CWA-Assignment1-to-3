@@ -26,6 +26,14 @@ The health check is available at `http://localhost:3000/api/health` and returns 
 - `GET /api/words/:id` retrieves an individual word.
 - `PUT/DELETE /api/words/:id` updates or deletes an individual word.
 - `GET /api/health` checks the API and database connection.
+- `GET /health` returns `200 OK` when the app is running.
+- `GET /api/metrics` returns dashboard metrics (activity counts, average time on page, most-used activity type, successful/failed generations, word list summary, alerts).
+- `POST /api/events` records a usage event (`PAGE_VIEW`, `GENERATION_SUCCESS`, `GENERATION_FAILURE`).
+- `GET /api/report` downloads a CSV report of activities and usage events.
+
+## Assessment 3: dashboard and testing
+
+Open `/dashboard` for health status, alerts, usage statistics and the word list summary. `npm run db:seed` adds simulated usage events. With the app running, `npm test` runs the API tests (set `BASE_URL` to test another host).
 
 Phonemes are stored as JSON arrays so multi-character symbols such as `tʃ` are preserved as one value.
 
@@ -44,3 +52,21 @@ Open `http://localhost:3000` after the container starts. SQLite is persisted in 
 3. Open `/api/health` and show the 200 response.
 4. Run the Docker compose command and repeat the health check.
 5. Use the Wordle and Word Search builders to generate downloadable HTML activities.
+
+## Observability (OpenTelemetry, Jaeger, Zipkin, Prometheus)
+
+The app is instrumented with OpenTelemetry (`instrumentation.ts`, `lib/telemetry.ts`). Traces and custom metrics (`builder_generations_total`, `builder_page_views_total`, `builder_time_on_page_ms`) go to an OpenTelemetry Collector, which forwards traces to Jaeger and Zipkin and exposes metrics for Prometheus.
+
+```
+docker compose -f docker-compose.monitoring.yml up -d
+npm run dev
+```
+
+| Tool | URL | What to check |
+| --- | --- | --- |
+| Jaeger | http://localhost:16686 | Service `next-app`, last hour, Find Traces |
+| Zipkin | http://localhost:9411 | serviceName `next-app`, Run Query |
+| Prometheus | http://localhost:9090 | `builder_generations_total`, `otelcol_exporter_sent_spans_total` |
+| Collector metrics | http://localhost:8888/metrics, http://localhost:8889/metrics | Raw metrics |
+
+Use the app (generate activities, open pages) so data appears. Try a bad URL such as `/api/hello1` to see a 404 trace.

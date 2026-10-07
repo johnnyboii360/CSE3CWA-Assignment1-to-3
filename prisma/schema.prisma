@@ -26,6 +26,25 @@ model ActivitySet {
   @@index([activityType])
 }
 
+enum EventType {
+  PAGE_VIEW
+  GENERATION_SUCCESS
+  GENERATION_FAILURE
+}
+
+model UsageEvent {
+  id           String        @id @default(cuid())
+  eventType    EventType
+  activityType ActivityType?
+  path         String        @default("")
+  durationMs   Int?
+  message      String        @default("")
+  createdAt    DateTime      @default(now())
+
+  @@index([eventType])
+  @@index([createdAt])
+}
+
 model Word {
   id                String      @id @default(cuid())
   activitySetId     String

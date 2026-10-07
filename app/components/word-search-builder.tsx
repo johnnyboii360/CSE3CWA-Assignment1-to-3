@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { trackEvent } from '../../lib/track';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -221,7 +222,9 @@ export function WordSearchBuilder() {
   const [storedActivities, setStoredActivities] = useState<StoredActivity[]>([]);
   const [selectedActivityId, setSelectedActivityId] = useState('');
   const [selectedPath, setSelectedPath] = useState<number[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
+  const selectedPathRef = useRef<number[]>([]);
+  const isDraggingRef = useRef(false);
+  const dragStartCellRef = useRef<HTMLButtonElement | null>(null);
   const [showAnswers, setShowAnswers] = useState(false);
   const [foundWords, setFoundWords] = useState<string[]>([]);
 
@@ -266,8 +269,12 @@ export function WordSearchBuilder() {
     });
   };
 
-  const validateSelection = (path: number[]) => {
-    if (!boardState || path.length === 0) return false;
+  const validateSelection = useCallback((path: number[]) => {
+    if (!boardState || path.length === 0) {
+      selectedPathRef.current = [];
+      setSelectedPath([]);
+      return false;
+    }
 
     const match = boardState.placedWords.find(({ phoneme }) => {
       if (foundWords.includes(phoneme)) {
@@ -279,47 +286,59 @@ export function WordSearchBuilder() {
     });
 
     if (!match) {
+      selectedPathRef.current = [];
       setSelectedPath([]);
       return false;
     }
 
     setFoundWords((existingWords) => (existingWords.includes(match.phoneme) ? existingWords : [...existingWords, match.phoneme]));
+    selectedPathRef.current = [];
     setSelectedPath([]);
     return true;
-  };
+  }, [boardState, foundWords, wordPaths]);
 
-  const handlePointerDown = (index: number) => {
-    setIsDragging(true);
+  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>, index: number) => {
+    isDraggingRef.current = true;
+    dragStartCellRef.current = event.currentTarget;
+    selectedPathRef.current = [index];
     setSelectedPath([index]);
   };
 
   const handlePointerEnter = (index: number) => {
-    if (!isDragging || selectedPath.length === 0) return;
+    const path = selectedPathRef.current;
+    if (!isDraggingRef.current || path.length === 0) return;
 
-    const nextPath = buildPath(selectedPath[0], index);
+    const nextPath = buildPath(path[0], index);
     if (nextPath.length > 0) {
+      selectedPathRef.current = nextPath;
       setSelectedPath(nextPath);
     }
   };
 
-  const handlePointerUp = () => {
-    if (!isDragging) return;
+  const handlePointerUp = useCallback(() => {
+    if (!isDraggingRef.current) return;
 
-    setIsDragging(false);
-    validateSelection(selectedPath);
-  };
+    isDraggingRef.current = false;
+    const isCorrectSelection = validateSelection(selectedPathRef.current);
+    if (!isCorrectSelection) {
+      dragStartCellRef.current?.blur();
+    }
+    dragStartCellRef.current = null;
+  }, [validateSelection]);
 
   const handleCellKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
 
       if (selectedPath.length === 0) {
+        selectedPathRef.current = [index];
         setSelectedPath([index]);
         return;
       }
 
       const nextPath = buildPath(selectedPath[0], index);
       if (nextPath.length > 0) {
+        selectedPathRef.current = nextPath;
         setSelectedPath(nextPath);
         validateSelection(nextPath);
       }
@@ -349,14 +368,16 @@ export function WordSearchBuilder() {
     if (selectedPath.length > 0) {
       const nextPath = buildPath(selectedPath[0], nextIndex);
       if (nextPath.length > 0) {
+        selectedPathRef.current = nextPath;
         setSelectedPath(nextPath);
       }
     }
   };
 
   const resetPreviewState = () => {
+    selectedPathRef.current = [];
+    isDraggingRef.current = false;
     setSelectedPath([]);
-    setIsDragging(false);
     setShowAnswers(false);
     setFoundWords([]);
   };
@@ -374,7 +395,7 @@ export function WordSearchBuilder() {
       fetch('/api/activity-sets?type=WORD_SEARCH')
         .then((response) => response.ok ? response.json() : [])
         .then((activities: StoredActivity[]) => {
-          setStoredActivities(activities);
+          setStoredActivities((current) => JSON.stringify(current) === JSON.stringify(activities) ? current : activities);
           if (activities.length > 0) {
             setSelectedActivityId((current) => current || activities[0].id);
             setDifficulty((current) => current === 'medium' ? activities[0].difficulty : current);
@@ -396,9 +417,7 @@ export function WordSearchBuilder() {
     if (!boardState) return;
 
     const handlePointerUpAnywhere = () => {
-      if (isDragging) {
-        handlePointerUp();
-      }
+      handlePointerUp();
     };
 
     window.addEventListener('pointerup', handlePointerUpAnywhere);
@@ -406,7 +425,7 @@ export function WordSearchBuilder() {
     return () => {
       window.removeEventListener('pointerup', handlePointerUpAnywhere);
     };
-  }, [isDragging, selectedPath, boardState]);
+  }, [boardState, handlePointerUp]);
 
   const previewBoard = boardState?.board ?? [];
   const previewCellSize = boardState?.size === 12 ? 30 : boardState?.size === 8 ? 42 : 36;
@@ -470,6 +489,7 @@ export function WordSearchBuilder() {
     }
     .cell:hover { background: #f1f5f9; }
     .cell:focus-visible { outline: 2px solid #10b981; outline-offset: 2px; }
+    .cell.start-cell { outline: 2px solid #10b981; outline-offset: 2px; }
     .cell.selected { background: #4ade80; color: white; border-color: #22c55e; box-shadow: 0 4px 8px rgba(34, 197, 94, 0.25); }
     .cell.found-cell { background: #4ade80; color: white; border-color: #22c55e; }
     .cell.answer { background: #ffb914; color: white; border-color: #f59e0b; }
@@ -554,6 +574,7 @@ export function WordSearchBuilder() {
         const cell = document.querySelector(\`[data-index="\${index}"]\`);
         if (cell) {
           cell.classList.remove('selected');
+          cell.classList.remove('start-cell');
         }
       });
       selectedPath = [];
@@ -604,6 +625,10 @@ export function WordSearchBuilder() {
           const cell = document.querySelector(\`[data-index="\${index}"]\`);
           cell.classList.add('selected');
       });
+      const startCell = document.querySelector(\`[data-index="\${selectedPath[0]}"]\`);
+      if (startCell) {
+        startCell.classList.add('start-cell');
+      }
     }
 
     function isExactOrderedMatch(selectionPath, wordPath) {
@@ -637,6 +662,7 @@ export function WordSearchBuilder() {
             cell.classList.add('found-cell');
             cell.classList.remove('answer');
             cell.classList.remove('selected');
+            cell.classList.remove('start-cell');
           });
           break;
         }
@@ -740,6 +766,15 @@ export function WordSearchBuilder() {
     downloadHtml(html, 'phoneme-word-search.html');
   };
 
+  const handleGenerateClick = () => {
+    try {
+      handleGenerate();
+      trackEvent({ eventType: 'GENERATION_SUCCESS', activityType: 'WORD_SEARCH', path: '/word-search' });
+    } catch (error) {
+      trackEvent({ eventType: 'GENERATION_FAILURE', activityType: 'WORD_SEARCH', path: '/word-search', message: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  };
+
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -750,7 +785,7 @@ export function WordSearchBuilder() {
           </div>
           <button
             type="button"
-            onClick={handleGenerate}
+            onClick={handleGenerateClick}
             className="rounded-full bg-amber-600 px-4 py-2 font-medium text-white transition hover:bg-amber-700"
           >
             Generate HTML
@@ -815,7 +850,7 @@ export function WordSearchBuilder() {
         {previewBoard.length ? (
           <div className="mt-5 flex justify-center">
             <div
-              className="mx-auto grid w-fit gap-1.5"
+              className="mx-auto grid w-fit select-none gap-1.5"
               style={{ gridTemplateColumns: `repeat(${boardState?.size ?? 10}, ${previewCellSize}px)` }}
             >
               {previewBoard.flat().map((letter, index) => (
@@ -824,10 +859,9 @@ export function WordSearchBuilder() {
                   type="button"
                   data-index={index}
                   aria-label={`Cell ${index + 1}, letter ${letter}`}
-                  onPointerDown={() => handlePointerDown(index)}
+                  onPointerDown={(event) => handlePointerDown(event, index)}
                   onPointerEnter={() => handlePointerEnter(index)}
                   onPointerMove={() => handlePointerEnter(index)}
-                  onPointerUp={handlePointerUp}
                   onKeyDown={(event) => handleCellKeyDown(event, index)}
                   className={`flex items-center justify-center rounded-xl border text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
                     selectedPath.includes(index)

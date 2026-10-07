@@ -36,4 +36,32 @@ await prisma.activitySet.upsert({
   },
 });
 
+const existingEvents = await prisma.usageEvent.count();
+if (existingEvents === 0) {
+  const paths = ['/', '/wordle', '/word-search', '/activities', '/dashboard', '/about'];
+  const now = Date.now();
+  const events = [];
+  for (let i = 0; i < 60; i += 1) {
+    const path = paths[i % paths.length];
+    events.push({
+      eventType: 'PAGE_VIEW',
+      path,
+      durationMs: 8000 + ((i * 7919) % 90000),
+      createdAt: new Date(now - (i * 37 + 5) * 60 * 1000),
+    });
+  }
+  for (let i = 0; i < 24; i += 1) {
+    const activityType = i % 3 === 0 ? 'WORD_SEARCH' : 'WORDLE';
+    const failed = i % 8 === 7;
+    events.push({
+      eventType: failed ? 'GENERATION_FAILURE' : 'GENERATION_SUCCESS',
+      activityType,
+      path: activityType === 'WORDLE' ? '/wordle' : '/word-search',
+      message: failed ? 'Simulated failure: no valid words selected.' : 'Simulated successful generation.',
+      createdAt: new Date(now - (i * 53 + 10) * 60 * 1000),
+    });
+  }
+  await prisma.usageEvent.createMany({ data: events });
+}
+
 await prisma.$disconnect();

@@ -148,7 +148,7 @@ export default function ActivitiesPage() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Assessment 2</p>
         <h1 className="mt-1 text-3xl font-semibold">Activity data manager</h1>
-        <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">Save phoneme words and activity settings in SQLite. Saved records drive the classroom builders.</p>
+        <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">Assessment 2 focuses on backend implementation, SQLite database integration, CRUD operations, and Docker execution. Save phoneme words and activity settings here to drive the classroom builders.</p>
         <form className="mt-6 space-y-4" onSubmit={saveActivity}>
           <label className="block text-sm font-medium">Activity title<input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800" /></label>
           <div className="grid gap-4 sm:grid-cols-2">

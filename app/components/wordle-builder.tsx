@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { trackEvent } from '../../lib/track';
 
 type WordOption = {
   id: string;
@@ -244,7 +245,7 @@ export function WordleBuilder() {
       fetch('/api/activity-sets?type=WORDLE')
         .then((response) => response.ok ? response.json() : [])
         .then((activities: StoredActivity[]) => {
-          setStoredActivities(activities);
+          setStoredActivities((current) => JSON.stringify(current) === JSON.stringify(activities) ? current : activities);
           if (activities.length > 0) {
             setSelectedActivityId((current) => current || activities[0].id);
             setSelectedWordId((current) => current || `stored-${activities[0].words[0].id}`);
@@ -559,6 +560,15 @@ export function WordleBuilder() {
 
   const hintText = selectedWord.hint;
 
+  const handleGenerateClick = () => {
+    try {
+      handleGenerate();
+      trackEvent({ eventType: 'GENERATION_SUCCESS', activityType: 'WORDLE', path: '/wordle' });
+    } catch (error) {
+      trackEvent({ eventType: 'GENERATION_FAILURE', activityType: 'WORDLE', path: '/wordle', message: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  };
+
   return (
     <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -569,7 +579,7 @@ export function WordleBuilder() {
           </div>
           <button
             type="button"
-            onClick={handleGenerate}
+            onClick={handleGenerateClick}
             className="rounded-full bg-sky-600 px-4 py-2 font-medium text-white transition hover:bg-sky-700"
           >
             Generate HTML
