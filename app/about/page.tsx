@@ -1,13 +1,11 @@
-import Link from 'next/link';
-
 export default function AboutPage() {
   return (
     <>
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">About the assessment</p>
-        <h1 className="mt-2 text-3xl font-semibold">Assessment 2: backend for phoneme-based classroom activities</h1>
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700 dark:text-sky-400">About the assessment</p>
+        <h1 className="mt-2 text-3xl font-semibold">Assessment 3: data-driven web application and reporting</h1>
         <p className="mt-4 max-w-3xl text-lg text-slate-600 dark:text-slate-400">
-          Building on Assessment 1&apos;s frontend experience, this assessment focuses on backend implementation, SQLite database integration, CRUD operations, and Docker execution for speech pathology classroom activities.
+          Assessment 3 extends the same project into a data-driven web application and reporting stage. It demonstrates that the Wordle and Word Search builder can store, process, monitor and present data in a meaningful operational format, with emphasis on observability, testing and reporting.
         </p>
       </section>
 
@@ -27,6 +25,12 @@ export default function AboutPage() {
             <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300">SQLite persistence and CRUD APIs for activities and words</span>
           </li>
           <li className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+            <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Dashboard with usage statistics, simulated records and alerts</span>
+          </li>
+          <li className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+            <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Observability with Jaeger, Zipkin and Prometheus, plus CSV reporting and automated tests</span>
+          </li>
+          <li className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
             <span className="block text-sm font-semibold text-slate-700 dark:text-slate-300">One-click HTML download for browser use</span>
           </li>
         </ul>
@@ -35,7 +39,7 @@ export default function AboutPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-2xl font-semibold">Assessment scope</h2>
         <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
-          Assessment 2 extends the Assessment 1 frontend with database-backed activity and word management, validation, API health checks, and Docker support.
+          Assessment 3 extends the Assessment 1 frontend and Assessment 2 backend with dashboard views, simulated input records, operational statistics, alerts, reporting, and practical testing and accessibility checks.
         </p>
       </section>
 
@@ -56,14 +60,6 @@ export default function AboutPage() {
           <video controls className="w-full" preload="metadata" poster="/Screenshot 2026-08-12 175400.png">
             <source src="/video1833123053.mp4" type="video/mp4" />
           </video>
-        </div>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/wordle" className="rounded-full bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-700">
-            Open Wordle Builder
-          </Link>
-          <Link href="/word-search" className="rounded-full bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700">
-            Open Word Search Builder
-          </Link>
         </div>
       </section>
     </>

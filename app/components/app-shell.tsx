@@ -41,18 +41,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    const startedAt = Date.now();
+    let startedAt = Date.now();
     let sent = false;
 
     const sendPageView = () => {
       if (sent) return;
       sent = true;
-      trackEvent({ eventType: 'PAGE_VIEW', path: pathname, durationMs: Date.now() - startedAt });
+      const elapsed = Date.now() - startedAt;
+      // sub-second visits are dev double-mounts or instant navigations, not real time on page
+      trackEvent({ eventType: 'PAGE_VIEW', path: pathname, durationMs: elapsed >= 1000 ? elapsed : undefined });
+    };
+
+    // switching tabs also ends the visit; coming back starts a new one
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        sendPageView();
+      } else {
+        startedAt = Date.now();
+        sent = false;
+      }
     };
 
     window.addEventListener('pagehide', sendPageView);
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       window.removeEventListener('pagehide', sendPageView);
+      document.removeEventListener('visibilitychange', handleVisibility);
       sendPageView();
     };
   }, [pathname]);
@@ -60,17 +74,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       <header className="relative z-30 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 overflow-visible px-4 py-4 sm:px-6 lg:px-8">
-          <div>
+        <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-4 overflow-visible px-4 py-4 sm:px-6 md:flex-wrap lg:px-8">
+          <div className="min-w-0">
             <Link href="/" className="text-lg font-semibold tracking-tight">
               Speech Pathology Activity Builder
             </Link>
             <p className="text-sm text-slate-600 dark:text-slate-400">
               {pathname === '/dashboard'
-                ? 'Assessment 3 • Data-Driven Dashboard and Reporting'
+                ? 'Assessment 3 • Data-driven web application with dashboard'
                 : pathname === '/activities'
-                ? 'Assessment 2 • Backend, Database, CRUD and Docker'
-                : 'Assessment 1 • Frontend Design and Usability'}
+                ? 'Assessment 2 • Full-stack cloud application implementation'
+                : 'Assessment 1 • Frontend design and usability (React)'}
             </p>
           </div>
 
@@ -90,7 +104,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          <div ref={menuRef} className="relative z-40 md:hidden">
+          <div ref={menuRef} className="relative z-40 shrink-0 md:hidden">
             <button
               type="button"
               aria-expanded={menuOpen}

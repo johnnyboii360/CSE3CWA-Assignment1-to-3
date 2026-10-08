@@ -1,6 +1,6 @@
  # Speech Pathology Activity Builder
 
-Assessment 2 extends the Assessment 1 Next.js builder with SQLite, Prisma, CRUD APIs, validation, and Docker support.
+Assessment 3 extends the Assessment 1 frontend and Assessment 2 backend (SQLite, Prisma, CRUD APIs, validation, Docker) with a data-driven dashboard, simulated usage records, alerts, CSV reporting, observability (Jaeger, Zipkin, Prometheus) and automated tests.
 
 ## Local setup
 

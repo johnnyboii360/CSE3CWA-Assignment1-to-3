@@ -41,7 +41,15 @@ type Metrics = {
 
 const typeLabel = (type: string | null) => (type === 'WORDLE' ? 'Wordle' : type === 'WORD_SEARCH' ? 'Word Search' : 'No data yet');
 const formatDuration = (seconds: number) => (seconds >= 60 ? `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s` : `${seconds}s`);
-const formatTime = (value: string) => new Date(value).toLocaleString();
+const formatSetting = (setting: string) => {
+  const match = setting.match(/^(Wordle|Word Search) (\w+) = (.+)$/);
+  if (!match) return setting;
+  const [, type, key, value] = match;
+  if (key === 'maxAttempts') return `${type} with ${value} attempts allowed`;
+  if (key === 'gridSize') return `${type} with a ${value}×${value} grid`;
+  return setting;
+};
+const formatTime = (value: string) => new Date(value).toLocaleString('en-AU');
 
 function StatCard({ label, value, detail, tone = 'sky' }: { label: string; value: string | number; detail?: string; tone?: 'sky' | 'amber' | 'emerald' | 'red' | 'slate' }) {
   const tones = {
@@ -105,38 +113,40 @@ export default function DashboardPage() {
   return (
     <>
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Assessment 3</p>
-            <h1 className="mt-1 text-3xl font-semibold">Operations dashboard</h1>
-            <p className="mt-3 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
-              Database-backed summaries of stored word lists, activity configurations, usage, and generation outcomes for the Wordle and Word Search builder.
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <span
-              role="status"
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${
-                healthy ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
-              }`}
-            >
-              <span className={`h-2.5 w-2.5 rounded-full ${healthy ? 'bg-emerald-500' : 'bg-red-500'}`} aria-hidden="true" />
-              {metrics ? (healthy ? 'System healthy' : 'System unhealthy') : error ? 'System unhealthy' : 'Checking…'}
-            </span>
-            <div className="flex gap-3 text-sm">
-              <button type="button" onClick={loadMetrics} className="text-sky-700 underline transition hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300">Refresh</button>
-              <a href="/health" target="_blank" rel="noreferrer" className="text-sky-700 underline transition hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300">/health</a>
-              <a href="/api/metrics" target="_blank" rel="noreferrer" className="text-sky-700 underline transition hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300">Metrics API</a>
-              <a href="http://localhost:16686" target="_blank" rel="noreferrer" className="text-sky-700 underline transition hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300">Jaeger</a>
-              <a href="http://localhost:9090" target="_blank" rel="noreferrer" className="text-sky-700 underline transition hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300">Prometheus</a>
-              <a href="http://localhost:9411" target="_blank" rel="noreferrer" className="text-sky-700 underline transition hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300">Zipkin</a>
-              <a href="/api/report" download className="text-sky-700 underline transition hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-300">Download CSV report</a>
-            </div>
-          </div>
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700 dark:text-sky-400">Assessment 3</p>
+        <h1 className="mt-1 text-3xl font-semibold">Operations dashboard</h1>
+        <p className="mt-3 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+          Database-backed summaries of stored word lists, activity configurations, usage, and generation outcomes for the Wordle and Word Search builder.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3 text-sm">
+          <button type="button" onClick={loadMetrics} className="rounded-full border border-sky-300 px-3 py-1 text-sky-700 transition hover:border-sky-500 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/40">Refresh metrics</button>
+          <a href="/api/metrics" target="_blank" rel="noreferrer" className="rounded-full border border-sky-300 px-3 py-1 text-sky-700 transition hover:border-sky-500 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/40">Metrics API</a>
+          <a href="http://localhost:16686" target="_blank" rel="noreferrer" className="rounded-full border border-sky-300 px-3 py-1 text-sky-700 transition hover:border-sky-500 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/40">Jaeger</a>
+          <a href="http://localhost:9090" target="_blank" rel="noreferrer" className="rounded-full border border-sky-300 px-3 py-1 text-sky-700 transition hover:border-sky-500 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/40">Prometheus</a>
+          <a href="http://localhost:9411" target="_blank" rel="noreferrer" className="rounded-full border border-sky-300 px-3 py-1 text-sky-700 transition hover:border-sky-500 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/40">Zipkin</a>
+          <a href="/api/report" download className="rounded-full border border-sky-300 px-3 py-1 text-sky-700 transition hover:border-sky-500 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/40">Download CSV report</a>
         </div>
         {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-300">{error}</p>}
       </section>
 
+      <section
+        role="status"
+        aria-label="System status"
+        className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-3 text-sm ${
+          healthy
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+            : 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-200'
+        }`}
+      >
+        <span className="flex items-center gap-3 font-semibold">
+          <span className={`h-2.5 w-2.5 rounded-full ${healthy ? 'bg-emerald-500' : 'bg-red-500'}`} aria-hidden="true" />
+          {metrics ? (healthy ? 'System healthy · database connected' : 'System unhealthy · database unavailable') : error ? 'System unhealthy' : 'Checking…'}
+        </span>
+        <span className="flex gap-4">
+          <a href="/health" target="_blank" rel="noreferrer" className="underline transition hover:opacity-70">Health endpoint</a>
+          {metrics && <span>Updated {new Date(metrics.generatedAt).toLocaleTimeString('en-AU')}</span>}
+        </span>
+      </section>
       {!metrics && !error && <p className="text-sm text-slate-500">Loading metrics…</p>}
 
       {metrics && (
@@ -182,8 +192,8 @@ export default function DashboardPage() {
           <section aria-labelledby="wordlists-heading" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <h2 id="wordlists-heading" className="text-2xl font-semibold">Word list summary</h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{metrics.wordLists.distinctPhonemes} distinct phoneme symbols across {metrics.activities.totalWords} stored words.</p>
-            <div className="mt-4 grid gap-6 lg:grid-cols-3">
-              <div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
                 <p className="text-sm font-semibold">Most common phoneme symbols</p>
                 <div className="mt-3 space-y-3">
                   {metrics.wordLists.topPhonemes.map((item) => (
@@ -192,26 +202,27 @@ export default function DashboardPage() {
                   {metrics.wordLists.topPhonemes.length === 0 && <p className="text-sm text-slate-500">No phoneme data stored.</p>}
                 </div>
               </div>
-              <div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
                 <p className="text-sm font-semibold">Words per list</p>
                 <ul className="mt-3 space-y-2 text-sm">
                   {metrics.wordLists.wordsPerList.map((list) => (
-                    <li key={list.title + list.activityType} className="flex justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700">
+                    <li key={list.title + list.activityType} className="flex justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
                       <span className="font-medium">{list.title}</span>
                       <span className="text-slate-600 dark:text-slate-400">{typeLabel(list.activityType)} · {list.wordCount}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-              <div>
-                <p className="text-sm font-semibold">Hints and output settings</p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+                <p className="text-sm font-semibold">Hints and activity settings</p>
                 <div className="mt-3 space-y-3">
                   <Bar label="Activities with a hint" value={metrics.wordLists.hints.withHint} total={metrics.activities.total} color="bg-emerald-500" />
                   <Bar label="Activities without a hint" value={metrics.wordLists.hints.withoutHint} total={metrics.activities.total} color="bg-slate-400" />
                 </div>
-                <ul className="mt-4 space-y-1 text-sm">
+                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">Settings used by saved activities</p>
+                <ul className="mt-2 space-y-2 border-t border-slate-200 pt-3 text-sm dark:border-slate-700">
                   {metrics.wordLists.outputSettings.map((item) => (
-                    <li key={item.setting} className="flex justify-between gap-3"><span>{item.setting}</span><span className="text-slate-600 dark:text-slate-400">{item.count}</span></li>
+                    <li key={item.setting} className="flex justify-between gap-3"><span>{formatSetting(item.setting)}</span><span className="text-slate-600 dark:text-slate-400">{item.count} {item.count === 1 ? 'activity uses this' : 'activities use this'}</span></li>
                   ))}
                 </ul>
               </div>
@@ -263,7 +274,7 @@ export default function DashboardPage() {
               <p className="mt-5 text-sm font-semibold">Recently created</p>
               <ul className="mt-2 space-y-2 text-sm">
                 {metrics.activities.recent.map((activity) => (
-                  <li key={activity.id} className="flex justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700">
+                  <li key={activity.id} className="flex justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
                     <span className="font-medium">{activity.title}</span>
                     <span className="text-slate-600 dark:text-slate-400">{typeLabel(activity.activityType)} · {activity.wordCount} words</span>
                   </li>
@@ -302,7 +313,7 @@ export default function DashboardPage() {
               <p className="mt-5 text-sm font-semibold">Recent generation events</p>
               <ul className="mt-2 space-y-2 text-sm">
                 {metrics.generation.recent.map((event) => (
-                  <li key={event.id} className="flex justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700">
+                  <li key={event.id} className="flex justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
                     <span className={event.eventType === 'GENERATION_SUCCESS' ? 'font-medium text-emerald-700 dark:text-emerald-400' : 'font-medium text-red-700 dark:text-red-400'}>
                       {event.eventType === 'GENERATION_SUCCESS' ? 'Success' : 'Failure'} · {typeLabel(event.activityType)}
                     </span>

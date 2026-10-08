@@ -574,13 +574,13 @@ export function WordleBuilder() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Wordle builder</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700 dark:text-sky-400">Wordle builder</p>
             <h2 className="mt-1 text-2xl font-semibold">Create a phoneme-based Wordle activity</h2>
           </div>
           <button
             type="button"
             onClick={handleGenerateClick}
-            className="rounded-full bg-sky-600 px-4 py-2 font-medium text-white transition hover:bg-sky-700"
+            className="rounded-full bg-sky-700 px-4 py-2 font-medium text-white transition hover:bg-sky-800"
           >
             Generate HTML
           </button>
@@ -621,7 +621,7 @@ export function WordleBuilder() {
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">Live preview</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-400">Live preview</p>
         <h3 className="mt-1 text-3xl font-semibold">Phoneme Wordle</h3>
         <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-400">{selectedActivity?.hint || hintText}</p>
 
